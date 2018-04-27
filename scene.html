@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>glare_viz</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <script src="build/three.js"></script>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.6/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.6/"></script>
+
+  <script src="js/QuickHull.js"></script>
+  <script src="js/geometries/ConvexGeometry.js"></script>
+  
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/SceneView",
+      "esri/layers/SceneLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/views/3d/externalRenderers",
+      "esri/geometry/SpatialReference",
+      "esri/Graphic",
+      "esri/geometry/Point",
+      "esri/geometry/Polygon",
+      "dojo/domReady!"
+    ], function(Map, SceneView, SceneLayer, GraphicsLayer, externalRenderers, SpatialReference, Graphic, Point, Polygon) {
+
+      // Create Map
+      var map = new Map({
+        basemap: "hybrid",
+        ground: "world-elevation"
+      });
+
+      // Create the SceneView
+      var view = new SceneView({
+        container: "viewDiv",
+        map: map,
+        camera: {
+          position: [-76.445, 36.287, 200000],
+          tilt: 45,
+          heading: 0
+        }
+      });
+
+      // generate the reference polygon
+
+      var inputPoly = new Polygon({
+          hasZ: true,
+          hasM: false,
+          rings: [
+              [
+                  [-76.44543, 38.287764, 20],
+                  [-76.4436, 38.28816, 20],
+                  [-76.44343, 38.28768, 20],
+                  [-76.44524, 38.287267, 20]
+              ].reverse()
+          ],
+          spatialReference: { wkid: 4326 }
+      });
+
+      var inputGraphic = new Graphic({
+          geometry: inputPoly,
+          symbol: {
+              type: "simple-fill",
+              color: "red",
+              outline: {
+                  color: [0, 0, 0, 0.5],
+                  width: "0.5px"
+              }
+          }
+      });
+
+    var graphicsLayer = new GraphicsLayer({ graphics:[ inputGraphic] });
+    map.add(graphicsLayer);
+
+    // add corridor scene layer
+
+    var corridors = new SceneLayer({
+        url: "https://portal.epsiloncl.com/maps/rest/services/Hosted/military_flight_corridor_area_by_service_3D_feature/SceneServer",
+        opacity: 0.5
+    });
+
+    map.add(corridors);
+
+    var glareRenderer = {
+        renderer: null,
+        camera: null,
+        scene: null,
+        ambient: null,
+        sun: null,
+        glare_pts: [[-64933.37720195445, -37555.168146896256, 300.0002609061291], [64966.62279804555, -37555.168146896256, 300.0002609061291], [65124.976821496064, -37509.326083525266, 300.00240388755174], [65799.97682149606, -36384.326083525266, 300.00240388755174], [66699.97682149606, -34734.326083525266, 300.00240388755174], [68124.97682149606, -31809.326083525262, 300.00240388755174], [68874.97682149606, -30159.326083525262, 300.00240388755174], [69474.97682149606, -28734.326083525262, 300.00240388755174], [69999.97682149606, -27459.326083525262, 300.00240388755174], [70524.97682149606, -26034.32608352526, 300.00240388755174], [71499.97682149606, -23334.326083525262, 300.00240388755174], [72774.97682149606, -18984.326083525262, 300.00240388755174], [73599.97682149606, -15459.326083525264, 300.00240388755174], [73899.97682149606, -13884.326083525264, 300.00240388755174], [74049.97682149606, -12909.326083525262, 300.00240388755174], [74799.97682149606, -7809.326083525263, 300.00240388755174], [74949.97682149606, -6159.326083525263, 300.00240388755174], [75024.97682149606, -5109.326083525263, 300.00240388755174], [75174.97682149606, -1434.3260835252631, 300.00240388755174], [75174.97682149606, 2240.673916474737, 300.00240388755174], [75024.97682149606, 4940.673916474737, 300.00240388755174], [74874.97682149606, 6965.673916474737, 300.00240388755174], [74574.97682149606, 9590.673916474736, 300.00240388755174], [74349.97682149606, 11165.673916474736, 300.00240388755174], [74199.97682149606, 12140.673916474736, 300.00240388755174], [73899.97682149606, 13715.673916474736, 300.00240388755174], [73299.97682149606, 16715.673916474738, 300.00240388755174], [73074.97682149606, 17690.673916474738, 300.00240388755174], [72549.97682149606, 19715.673916474738, 300.00240388755174], [72174.97682149606, 21140.673916474734, 300.00240388755174], [72160.10379167441, 21193.95531932487, 300.00215876242794], [71410.10379167441, 23593.955319324872, 300.00215876242794], [70435.10379167441, 26368.955319324872, 300.00215876242794], [69535.10379167441, 28618.955319324872, 300.00215876242794], [68185.10379167441, 31618.955319324872, 300.00215876242794], [66985.10379167441, 34168.95531932487, 300.00215876242794], [66310.10379167441, 35443.95531932487, 300.00215876242794], [65485.1037916744, 36943.95531932487, 300.00215876242794], [64810.1037916744, 38143.95531932487, 300.00215876242794], [-64489.8962083256, 38143.95531932487, 300.00215876242794], [-64650.0, 38100.0, 300.0], [-65325.0, 36900.0, 300.0], [-66150.0, 35400.0, 300.0], [-66825.0, 34125.0, 300.0], [-68025.0, 31575.0, 300.0], [-69375.0, 28575.0, 300.0], [-70275.0, 26325.0, 300.0], [-71250.0, 23550.0, 300.0], [-72000.0, 21149.999999999996, 300.0], [-72375.0, 19725.0, 300.0], [-72900.0, 17700.0, 300.0], [-73125.0, 16725.0, 300.0], [-73725.0, 13725.0, 300.0], [-74025.0, 12150.0, 300.0], [-74175.0, 11175.0, 300.0], [-74400.0, 9600.0, 300.0], [-74700.0, 6975.0, 300.0], [-74850.0, 4950.0, 300.0], [-75000.0, 2250.0, 300.0], [-75000.0, -1425.0, 300.0], [-74850.0, -5100.0, 300.0], [-74775.0, -6150.0, 300.0], [-74625.0, -7800.0, 300.0], [-73875.0, -12899.999999999998, 300.0], [-73725.0, -13875.0, 300.0], [-73425.0, -15450.0, 300.0], [-72600.0, -18975.0, 300.0], [-71325.0, -23325.0, 300.0], [-71308.37720195444, -23380.168146896252, 300.0002609061291], [-70333.37720195444, -26080.16814689625, 300.0002609061291], [-69808.37720195444, -27505.168146896252, 300.0002609061291], [-69283.37720195444, -28780.168146896252, 300.0002609061291], [-68683.37720195444, -30205.168146896252, 300.0002609061291], [-67933.37720195444, -31855.168146896252, 300.0002609061291], [-66508.37720195444, -34780.168146896256, 300.0002609061291], [-65608.37720195444, -36430.168146896256, 300.0002609061291], [0.0, 0.0, 0.0], [160.10379167440544, 43.95531932487389, 0.0021587624279462148], [174.97682149606698, -9.326083525263144, 0.0024038875517167213], [16.622798045552024, -55.16814689625308, 0.00026090612906415345]],
+        glare_origin: [-76.44543, 38.287764, 10],
+
+        setup: function(context) {
+            this.renderer = new THREE.WebGLRenderer({
+                context: context.gl,
+                premultipliedAlpha: false
+            });
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            this.renderer.setViewport(0,0,view.width,view.height);
+
+            this.renderer.autoClearDepth = false;
+            this.renderer.autoClearStencil = false;
+            this.renderer.autoClearColor = false;
+
+            var originalSetRenderTarget = this.renderer.setRenderTarget.bind(this.renderer);
+            this.renderer.setRenderTarget = function(target) {
+                originalSetRenderTarget(target);
+                if (target == null) {
+                    context.bindRenderTarget();
+                }
+            }
+
+            this.scene = new THREE.Scene();
+            this.camera = new THREE.PerspectiveCamera();
+            this.ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            this.scene.add(this.ambient);
+            this.sun = new THREE.DirectionalLight(0xffffff, 0.5);
+            this.scene.add(this.sun);
+
+            var meshMaterial = new THREE.MeshLambertMaterial( {
+                color: 0xFFFF33,
+                opacity: 0.3,
+                transparent: true
+            } );
+
+            var hull_vecs = this.glare_pts.map(x => new THREE.Vector3(x[0], x[1], x[2]));
+            var meshGeometry = new THREE.ConvexBufferGeometry(hull_vecs);
+            var mat = new THREE.Matrix4();
+            mat.fromArray(externalRenderers.renderCoordinateTransformAt(view, this.glare_origin, SpatialReference.WGS84, new Array(16)));
+            meshGeometry.applyMatrix(mat);
+
+            var mesh = new THREE.Mesh( meshGeometry, meshMaterial );
+            mesh.material.side = THREE.BackSide; // back faces
+            mesh.renderOrder = 0;
+            this.scene.add( mesh );
+
+            var mesh = new THREE.Mesh( meshGeometry, meshMaterial );
+            mesh.material.side = THREE.FrontSide; // front faces
+            mesh.renderOrder = 1;
+            this.scene.add( mesh );
+
+            context.resetWebGLState();
+        },
+
+        render: function(context) {
+            var cam = context.camera;
+
+            this.camera.position.set(cam.eye[0], cam.eye[1], cam.eye[2]);
+            this.camera.up.set(cam.up[0], cam.up[1], cam.up[2]);
+            this.camera.lookAt(new THREE.Vector3(cam.center[0], cam.center[1], cam.center[2]));
+            this.camera.projectionMatrix.fromArray(cam.projectionMatrix);
+
+            this.renderer.state.reset();
+            this.renderer.render(this.scene, this.camera);
+            externalRenderers.requestRender(view);
+            context.resetWebGLState();
+        }
+
+      }
+
+      externalRenderers.add(view, glareRenderer);
+
+      view.goTo(inputPoly);
+
+    });
+
+
+
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
